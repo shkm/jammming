@@ -1,9 +1,15 @@
 const baseUri = 'https://api.spotify.com/v1';
 const clientId = 'CHANGE_ME';
 const redirectUri = 'http://localhost:3000/';
-const scopes = ('playlist-modify-public');
+const scopes = 'playlist-modify-public';
+
+let accessToken;
 
 export const Spotify = {
+  ensureAuthorized() {
+    accessToken || this.getAccessToken() || this.authorize();
+  },
+
   authorize() {
     const uri = 'https://accounts.spotify.com/authorize?' +
                 'response_type=token&' +
@@ -14,7 +20,22 @@ export const Spotify = {
     window.location = uri;
   },
 
-  search(accessToken, name) {
+  // Grabs the access token from the current URL params,
+  // and stores it.
+  getAccessToken() {
+    const pattern = new RegExp(/#access_token=([\w-]+)/);
+    const matches = pattern.exec(window.location.hash);
+
+    if (matches) {
+      return accessToken = matches[1];
+    }
+
+    return;
+  },
+
+  search(name) {
+    this.ensureAuthorized();
+
     const url = `${baseUri}/search?q=${name}&type=album,track,artist`;
 
     return fetch(url, { headers: this.defaultHeaders(accessToken) })
@@ -31,15 +52,24 @@ export const Spotify = {
       });
   },
 
-  user(accessToken) {
+  savePlaylist(name, tracks) {
+    this.ensureAuthorized();
+
+    return this.getUser()
+      .then(user => this.createPlaylist(name, user))
+      .then(playlist => this.addTracksToPlaylist(playlist, tracks));
+  },
+
+  getUser() {
     const url = `${baseUri}/me`;
 
     return fetch(url, { headers: this.defaultHeaders(accessToken) })
-      .then(response => response.json());
+      .then(response => response.json())
   },
 
-  createPlaylist(accessToken, userId, name) {
-    const url = `${baseUri}/users/${userId}/playlists`;
+
+  createPlaylist(name, user) {
+    const url = `${baseUri}/users/${user.id}/playlists`;
 
     return fetch(url, {
       headers: this.defaultHeaders(accessToken),
@@ -49,8 +79,8 @@ export const Spotify = {
       .then(response => response.json());
   },
 
-  addTracksToPlaylist(accessToken, playlistId, tracks) {
-    const url = `${baseUri}/playlists/${playlistId}/tracks`;
+  addTracksToPlaylist(playlist, tracks) {
+    const url = `${baseUri}/playlists/${playlist.id}/tracks`;
 
     return fetch(url, {
       headers: this.defaultHeaders(accessToken),
