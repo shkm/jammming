@@ -37,6 +37,8 @@ export class App extends Component {
   }
 
   addTrackToPlaylist(track) {
+    if (this.state.playlistTracks.includes(track)) return;
+
     this.setState({ playlistTracks: [ track, ...this.state.playlistTracks ]});
   }
 
